@@ -50,7 +50,7 @@ print("break是跳出当前这层循环，对本层循环不再执行；\
 print("会导致无法跳出循环，因为while是只要符合条件就会持续执行，必须存在能够结束循环的条件")
 #写代码：l = [10, 20, 30]，用 for 循环计算总和并打印。
 l = [10, 20, 30]
-sum=0
+total=0
 for num in l:
-    sum+=num
+    total+=num
 print(f"{sum}")
