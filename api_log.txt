@@ -1,0 +1,15 @@
+2026-10-07 10:00:01 GET /api/login 200
+2026-10-07 10:00:02 POST /api/order 200
+2026-10-07 10:00:04 GET /api/user/info 404
+2026-10-07 10:00:05 POST /api/pay 500
+2026-10-07 10:00:06 GET /api/login 200
+2026-10-07 10:00:08 POST /api/order 201
+2026-10-07 10:00:10 GET /api/user/info 200
+2026-10-07 10:00:12 POST /api/pay 200
+2026-10-07 10:00:15 GET /api/login 200
+2026-10-07 10:00:18 POST /api/order 200
+2026-10-07 10:00:20 GET /api/user/info 500
+2026-10-07 10:00:22 POST /api/pay 404
+2026-10-07 10:00:25 GET /api/login 200
+2026-10-07 10:00:30 POST /api/order 200
+2026-10-07 10:00:35 GET /api/user/info 200
