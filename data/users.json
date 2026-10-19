@@ -1,0 +1,5 @@
+[
+  {"user": "test", "pwd": "123", "expect_code": 0},
+  {"user": "test", "pwd": "wrong", "expect_code": 401},
+  {"user": "admin", "pwd": "123", "expect_code": 401}
+]
