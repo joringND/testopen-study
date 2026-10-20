@@ -38,6 +38,10 @@ class ApiClient:
     #业务方法：只描述"要调哪个接口"，认证交给 _request
     def get_user(self):
         return self._request("GET","/get_user")
+    def get_order(self):
+        return self._request("GET","/get_order")
+    def get_vip(self):
+        return self._request("GET","/get_vip")
 
 client = ApiClient("http://127.0.0.1:8000")
 client.get_user()  # 自动登录 + 自动带 token + 401 自动重试

@@ -5,6 +5,8 @@ import json
 COUNTER = [0]           # 登录次数计数（列表是为了在函数里改全局）
 LATEST_TOKEN = "token-0"
 
+VIP_USERS = {"test", "vip"}          # ① 模块顶部加：vip 用户集合（vip 账号也登录成功）
+TOKEN_USER = {}                      #     token → 属于哪个用户
 class Handler(BaseHTTPRequestHandler):
     def _send(self, code, body):
         self.send_response(code)
@@ -21,8 +23,21 @@ class Handler(BaseHTTPRequestHandler):
             auth = self.headers.get("Authorization", "")
             if auth == f"Bearer {LATEST_TOKEN}":      # 只认最新 token
                 self._send(200, {"code": 0, "name": "张三", "age": 27})
+        elif self.path == "/get_order":
+            auth = self.headers.get("Authorization", "")
+            if auth == f"Bearer {LATEST_TOKEN}":
+                self._send(200, {"code": 0, "order_id": "ORD-1001", "amount": 99.9})
             else:
                 self._send(401, {"code": 401, "msg": "token 过期或未登录"})
+        elif self.path=="/get_vip":
+            auth = self.headers.get("Authorization", "")
+            user = TOKEN_USER.get(auth.replace("Bearer ", ""))
+            if user == "test":
+                self._send(200, {"code": 0, "is_vip": True})
+            elif user == "vip":
+                self._send(200, {"code": 0, "is_vip": False})
+            else:
+                self._send(401, {"code": 401, "msg": "token 过期或未登录"}) 
         else:
             self._send(404, {"code": 404, "msg": "not found"})
 
@@ -32,9 +47,10 @@ class Handler(BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(length)) if length else {}
 
         if self.path == "/login":
-            if body.get("user") == "test" and body.get("pwd") == "123":
+            if body.get("user") in VIP_USERS and body.get("pwd") == "123":
                 COUNTER[0] += 1
                 LATEST_TOKEN = f"token-{COUNTER[0]}"    # 每次登录发新 token
+                TOKEN_USER[LATEST_TOKEN] = body.get("user")   # 记下 token 属于谁
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Set-Cookie", f"token={LATEST_TOKEN}")
