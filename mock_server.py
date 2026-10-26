@@ -23,6 +23,8 @@ class Handler(BaseHTTPRequestHandler):
             auth = self.headers.get("Authorization", "")
             if auth == f"Bearer {LATEST_TOKEN}":      # 只认最新 token
                 self._send(200, {"code": 0, "name": "张三", "age": 27})
+            else:
+                self._send(401, {"code": 401, "msg": "token 过期或未登录"})
         elif self.path == "/get_order":
             auth = self.headers.get("Authorization", "")
             if auth == f"Bearer {LATEST_TOKEN}":
