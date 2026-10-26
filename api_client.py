@@ -42,6 +42,8 @@ class ApiClient:
         return self._request("GET","/get_order")
     def get_vip(self):
         return self._request("GET","/get_vip")
+    def echo(self, payload):
+        return self._request("POST", "/echo", json=payload)
 
 client = ApiClient("http://127.0.0.1:8000")
 client.get_user()  # 自动登录 + 自动带 token + 401 自动重试

@@ -118,6 +118,35 @@ def logged_client(client):
 | 4 yield 时机 | ✅ | 前=用例前（setup），后=用例后（teardown） |
 | 5 登录+清理 fixture | ✅ | 完整正确 |
 
+## 七.5 项目感实战（里程碑：第一次三步法独立写出用例 → 1 passed）
+
+### 背景
+用户坦言"简单的代码题写不出来"→ 诊断根因 = **缺项目感**（对项目结构/接口返回不了解），非语法问题。
+
+### 交付：项目全景图（三步法工作流）
+- **文件地图**：dayXX_homework.py=用例只写断言 / api_client.py=客户端框架 / conftest.py=fixture工厂 / mock_server.py=靶场+接口文档 / data+config=数据与配置
+- **数据流**：pytest 收集 → client.login → 打 mock → 断言 resp.json() 的 key
+- **接口速查表**：/login(code,token,msg) /get_user(code,name,age) /get_order(code,order_id,amount) /get_vip(code,is_vip) /echo(code,echo)（回显，POST，无认证）
+
+### 写代码前"三步回答法"（解决写不出来的核心工具）
+```
+Q1 放哪个文件？        → 用例放 dayXX；框架逻辑放 api_client；配置放 config/
+Q2 调哪个接口？参数？  → 查速查表（方法+路径+请求参数）
+Q3 返回哪些 key？断言哪个？→ 查返回结构 / print(resp.json()) / .keys()
+```
+"写不出来" = 三问没答完，不是语法问题。
+
+### 实战记录：测 /echo 回显（踩 3 坑 → 1 passed）
+1. **坑1**：以为 mock 没有 /echo → 实际 do_POST 里早就存在（接口盘点方法：`findstr /n "echo" mock_server.py` 或盘全部分支 do_GET 4 个 + do_POST 2 个；**凭记忆下结论 = 踩坑开始**）
+2. **坑2**：路径不一致（mock 是 /echo，client 写 /get_echo → 404）——**路径必须一字不差一一对应**
+3. **坑3**：误加认证（照抄 get_order 的 Bearer 逻辑）——**/echo 不是认证接口**；速查表区分：get_user/get_order/get_vip 要认证，/login、/echo 不要
+
+最终：api_client 加 `echo()` + 新建 day27_echo_test.py → **1 passed** ✅（第一次独立三步法产出）
+
+### 验收
+- 接口盘点：先搜索/盘全部分支，不凭记忆
+- 每个接口有自己的语义（方法/路径/认证/返回 key 四要素），写代码前查速查表
+
 ## 八、明日预告（Day28）
 
 **xfail 预期失败 + 断言技巧**：
