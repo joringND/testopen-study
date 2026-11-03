@@ -3,6 +3,8 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import cgi #解析上传的multipart文件
 import io
+import time 
+FLAKY_COUNT= [0] #/flaky接口的请求计数（前2次500，第3次200）
 COUNTER = [0]           # 登录次数计数（列表是为了在函数里改全局）
 LATEST_TOKEN = "token-0"
 
@@ -41,6 +43,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, {"code": 0, "is_vip": False})
             else:
                 self._send(401, {"code": 401, "msg": "token 过期或未登录"})
+        elif self.path=="/flaky":
+            FLAKY_COUNT[0]+=1        # 前 2 次故意 500
+            if FLAKY_COUNT[0]<3:
+                self._send(500,{"code":500,"msg":"服务暂时不可用"})
+            else:
+                self._send(200,{"code":0,"msg":"ok"})
+        elif self.path=="/slow":             
+            time.sleep(2)            # 故意慢 2 秒
+            self._send(200,{"code":0,"msg":"ok"})
+
         elif self.path=="/download":
             content=b"hello,this is a test file"*20
             self.send_response(200)
