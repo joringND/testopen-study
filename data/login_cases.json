@@ -1,0 +1,9 @@
+{
+  "login_cases": [
+    {"user": "test",  "pwd": "123",   "expected": 200},
+    {"user": "vip",   "pwd": "123",   "expected": 200},
+    {"user": "admin", "pwd": "123",   "expected": 401},
+    {"user": "test",  "pwd": "wrong", "expected": 401},
+    {"user": "vip", "pwd": "wrong", "expected": 401}
+  ]
+}
