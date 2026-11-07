@@ -9,7 +9,9 @@ def test_env_config(env_name, base_url):
 
 
 def test_env_name_valid(env_name):
-    assert env_name in ("test", "pre", "prod")
+    with open("config/env.json", "r", encoding="utf-8") as f:
+        cfg = json.load(f)
+    assert env_name in cfg, f"环境 {env_name} 不在配置中，可选 {list(cfg.keys())}"
 
 
 def test_real_api_only_in_test(env_name, client):
