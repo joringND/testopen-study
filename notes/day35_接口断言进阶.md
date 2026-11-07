@@ -160,6 +160,72 @@ def test_schema_ddt(client, method, schema):
 
 **结果**：6 passed（3 条普通 + 3 条数据驱动展开）。
 
+### getattr：数据驱动里的"方法名 → 方法"
+
+上一行 `data = getattr(client, method)().json()` 里的 `getattr` 是干什么的？
+
+**一句话**：把"字符串属性名"变成"真正的属性/方法"——点语法写死名字，getattr 可以用变量名。
+
+```python
+# 点语法：属性名必须写死
+client.get_user()
+
+# getattr：属性名可以是变量（字符串）
+name = "get_user"
+getattr(client, name)            # 等价于 client.get_user
+
+# 两者完全等价：
+getattr(client, "get_user")()  ==  client.get_user()
+```
+
+**拆解那一行**：
+
+```python
+fn = getattr(client, method)   # ① 按字符串名取出"方法对象"（还没调用）
+fn()                           # ② 加括号才真正执行 → 返回 Response
+```
+
+parametrize 传进来的是**字符串** `"get_user"` / `"get_order"` / `"get_vip"`——数据驱动只能传数据、传不了点语法，**getattr 就是"数据 → 方法"的转换器**。
+
+**第三个参数（默认值）**：
+
+```python
+getattr(client, "get_user")              # 存在 → 返回方法
+getattr(client, "getuser")               # 不存在 → AttributeError!
+getattr(client, "getuser", None)         # 不存在 → 返回 None，不报错
+```
+
+拼错方法名 = AttributeError（"一字不差"坑家族的又一成员：这次是方法名）。
+
+**家族三兄弟**：
+
+| 函数 | 作用 | 例子 |
+|---|---|---|
+| `getattr(obj, "x")` | 读属性 | `getattr(client, "token")` |
+| `hasattr(obj, "x")` | 判断是否存在 | `hasattr(client, "get_vip")` → True |
+| `setattr(obj, "x", v)` | 写属性 | `setattr(client, "token", "token-9")` |
+
+**关键坑：拿到方法不加 `()` 不执行**——`getattr(client, "get_user")` 只是方法对象，`getattr(client, "get_user")()` 才执行。和 `client.get_user` 不加括号同理。
+
+**小实验**：
+
+```python
+class Demo:
+    def hello(self):
+        return "hi"
+
+d = Demo()
+print(getattr(d, "hello"))        # 方法对象
+print(getattr(d, "hello")())      # hi（加 () 才执行）
+print(getattr(d, "nope", "默认")) # 默认值
+
+name = "hello"
+d.name()                          # ❌ AttributeError（点语法不认变量）
+getattr(d, name)()                # ✅ hi（getattr 认变量）
+```
+
+**记忆**：点语法是"写死门牌号"，getattr 是"按名字查门牌"——**名字可以来自数据**，所以它能配合 parametrize。
+
 ## 七、今日三个坑
 
 ### 1. `ApiClient()` 缺 base_url（首次 6 条全红）
