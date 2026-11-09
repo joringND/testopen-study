@@ -1,0 +1,5 @@
+2026-11-09 23:44:23 INFO api_client: POST /login -> 200 4ms
+2026-11-09 23:44:23 INFO api_client: GET /get_user -> 200 2ms
+2026-11-09 23:44:23 INFO api_client: POST /login -> 200 3ms
+2026-11-09 23:44:23 INFO api_client: GET /get_user -> 200 2ms
+2026-11-09 23:44:23 INFO day38_homework: 拿到用户数据：{'code': 0, 'name': '张三', 'age': 27}

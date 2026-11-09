@@ -1,5 +1,8 @@
 # api_client.py —— 接口框架核心：自动认证 + 401 自动重试
 import requests
+import logging
+import time
+logger=logging.getLogger(__name__)#__name__ 在这里正好是 "api_client"，日志里能看出是哪个模块打的
 class ApiClient:
     def __init__(self,base_url,user="test",pwd="123"):
         self.base_url=base_url
@@ -12,14 +15,23 @@ class ApiClient:
     def login(self,user=None,pwd=None):
         user = user if user else self.user      # 传了就用传入的，没传用对象默认的
         pwd = pwd if pwd else self.pwd
+        t0=time.time()
         resp=self.session.post(
             f"{self.base_url}/login",
             json={"user":user,"pwd":pwd},
             timeout=5,
         )
+        cost=int((time.time()-t0)*1000)
+        self._log("POST","/login",resp,cost)
         if resp.status_code==200:
             self.token=resp.json()["token"] #存token
         return resp
+    def _log(self,method,path,resp,cost):
+        """统一请求日志格式——所有发请求的地方都调它"""
+        logger.info(f"{method} {path} -> {resp.status_code} {cost}ms")
+        if cost>500:
+            logger.warning(f"{method} {path} -> {resp.status_code} {cost}ms慢请求")
+        logger.debug(f"resp={resp.text[:200]}")
     # 核心方法：所有请求走这里（自动带 token + 401 重试）
     def _request(self,method,path,**kwargs):
         if self.token is None:   #没token——>先登录
@@ -27,7 +39,12 @@ class ApiClient:
         headers=kwargs.pop("headers",{})
         headers["Authorization"]=f"Bearer {self.token}"#自动带token
 
+        t0=time.time()
+
         resp=self.session.request(method,f"{self.base_url}{path}",headers=headers,**kwargs)
+
+        cost=int((time.time()-t0)*1000)#time.time() 取秒级浮点，差乘 1000 得毫秒
+        self._log(method,path,resp,cost)
 
         if resp.status_code==401:    #token过期
             self.login()             #重新登录（换新token）
@@ -44,7 +61,7 @@ class ApiClient:
         return self._request("GET","/get_vip")
     def echo(self, payload):
         return self._request("POST", "/echo", json=payload)
-
-client = ApiClient("http://127.0.0.1:8000")
-client.get_user()  # 自动登录 + 自动带 token + 401 自动重试
+if __name__ == "__main__":
+    client = ApiClient("http://127.0.0.1:8000")
+    client.get_user()  # 自动登录 + 自动带 token + 401 自动重试
 # 全程不用管 login/headers/token

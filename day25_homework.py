@@ -50,12 +50,12 @@ print("分别跑标记为冒烟的用例和非冒烟的用例，没打任何标�
 print("skipped是跑不了的用例跳过不报错，failed是报错，跳过不等于失败。\
       skipif在需要判断跳过条件的时候使用，条件成立才跳过")
 # 写代码：读 env.json 返回 base_url 的 fixture（完整可跑）
-ENV="test"
-@pytest.fixture
-def base_url():
-    with open("config/env.json","r",encoding="utf-8") as f:
-        envs=json.load(f)
-        return envs[ENV]
+# ENV="test"
+# @pytest.fixture
+# def base_url():
+#     with open("config/env.json","r",encoding="utf-8") as f:
+#         envs=json.load(f)
+#         return envs[ENV]
 # 思考题：多环境切换的本质是什么？为什么 "地址查表" 比 "地址写死" 好？
 print('多环境切换的本质是地址从代码抽离成配置数据,\
       地址查表让 "切环境" 变成 "改数据 / 改环境变量"，CI 也能用 TEST_ENV 覆盖')         
