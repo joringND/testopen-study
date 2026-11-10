@@ -1,0 +1,13 @@
+{
+  "test": "day39_homework.py::test_fail_dump",
+  "error": "day39_homework.py:15: in test_fail_dump\n    assert data[\"age\"] == 28, f\"实际年龄是 {data['age']}\"\nE   AssertionError: 实际年龄是 27\nE   assert 27 == 28",
+  "last_exchange": {
+    "method": "GET",
+    "path": "/get_user",
+    "url": "http://127.0.0.1:8000/get_user",
+    "req_body": "None",
+    "status": 200,
+    "resp_text": "{\"code\": 0, \"name\": \"张三\", \"age\": 27}",
+    "cost_ms": 1
+  }
+}

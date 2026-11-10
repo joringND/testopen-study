@@ -10,6 +10,7 @@ class ApiClient:
         self.user=user
         self.pwd=pwd
         self.token=None #缓存的token（初始没有）
+        self.last_exchange=None#最近一次请求/响应，供失败落盘
 
     #登录：从响应体拿token存起来
     def login(self,user=None,pwd=None):
@@ -32,6 +33,17 @@ class ApiClient:
         if cost>500:
             logger.warning(f"{method} {path} -> {resp.status_code} {cost}ms慢请求")
         logger.debug(f"resp={resp.text[:200]}")
+        #留存最近一次交换
+        req=resp.request
+        self.last_exchange={
+            "method":method,
+            "path":path,
+            "url":req.url if req is not None else None,
+            "req_body":str(req.body)[:500] if req is not None else None,
+            "status":resp.status_code,
+            "resp_text":resp.text[:200],
+            "cost_ms":cost,
+        }
     # 核心方法：所有请求走这里（自动带 token + 401 重试）
     def _request(self,method,path,**kwargs):
         if self.token is None:   #没token——>先登录

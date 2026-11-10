@@ -1,8 +1,13 @@
 # ===== conftest.py：pytest 自动加载，fixture 全局共享 =====
+import os
+import datetime
+import logging
 import json
 import pytest
 import requests
 from api_client import ApiClient
+
+logger=logging.getLogger(__name__)
 
 #ENV="test"# 切换环境：只改这一行(day25框架工程化使用，已废弃)
 # ---- 新增：注册 --env 命令行参数 ----
@@ -42,3 +47,34 @@ def make_token():
 @pytest.fixture
 def client(base_url):          # fixture 里用另一个 fixture（依赖注入）
     return ApiClient(base_url)
+
+ARTIFACT_DIR="artifacts"
+
+@pytest.hookimpl(hookwrapper=True)#必须等 pytest 把 report 造好，才能读到 failed / longrepr
+def pytest_runtest_makereport(item,call):
+    """用例失败时，把最后一次请求、响应落盘到artifacts/"""
+    outcome=yield#必须等 pytest 把 report 造好，才能读到 failed / longrepr
+    report=outcome.get_result()
+    #只要 call 阶段（setup 挂是 fixture 问题、teardown 挂用例本身是过的）
+    if report.when != "call" or not report.failed:
+        return
+
+    client=item.funcargs.get("client")#从已完成注入的 fixture 里取实例；没写 client 的用例拿到 None，直接跳过
+    exchange=getattr(client,"last_exchange",None) if client else None
+    if exchange is None:
+        return
+
+    os.makedirs(ARTIFACT_DIR,exist_ok=True)#第一次跑自动建目录；不加 exist_ok 第二次会抛 FileExistsError
+    ts=datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    #参数化用例名长这样 test_x[case0]，Windows 文件名不允许方括号路径字符，不替换会写失败
+    safe=item.name.replace("[","_").replace("]","").replace("/","_")
+    path=f"{ARTIFACT_DIR}/{safe}_{ts}.json"
+
+    with open(path,"w",encoding="utf-8") as f:
+        json.dump({
+            "test":item.nodeid,
+            "error":str(report.longrepr)[:1000],
+            "last_exchange":exchange,
+        },f,ensure_ascii=False,indent=2)
+
+    logger.info(f"失败现场已保存：{path}")

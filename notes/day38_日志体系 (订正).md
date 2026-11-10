@@ -16,7 +16,7 @@
 | 操作 | 文件 | 说明 |
 |---|---|---|
 | 【修改】 | `api_client.py` | 加 `import logging/time`、模块级 logger、`_log()` 公共方法；`login` 与 `_request` 都调它 |
-| 【修改】 | `pytest.ini` | 加 `log_cli` / `log_cli_level` / `log_file` / `log_file_level` / `log_format` / `log_date_format` / `log_file_encoding` |
+| 【修改】 | `pytest.ini` | 加 `log_cli` / `log_cli_level` / `log_file` / `log_file_level` / `log_format` / `log_date_format`（`log_file_encoding` 在 pytest 8 不支持，见第六节更正） |
 | 【新建】 | `day38_homework.py` | 3 条用例：logger 名字、请求日志可见（caplog）、失败现场（xfail） |
 | 【新建目录】 | `logs/` | pytest 不会自动建，`mkdir logs` |
 | 【产物】 | `logs/run.log` | 每次运行累积的应用日志 |
@@ -107,7 +107,6 @@ log_file = logs/run.log
 log_file_level = INFO
 log_format = %(asctime)s %(levelname)s %(name)s: %(message)s
 log_date_format = %Y-%m-%d %H:%M:%S
-log_file_encoding = utf-8
 ```
 
 | 选项 | 作用 |
@@ -117,7 +116,11 @@ log_file_encoding = utf-8
 | `log_file` | 落盘路径，**目录必须已存在** |
 | `log_file_level` | 文件记录的最低级别 |
 | `log_format` / `log_date_format` | 每行格式与时间格式 |
-| `log_file_encoding` | 文件编码，显式写 utf-8 避免跨机器不一致 |
+
+> ⚠️ **更正（Day39 实测发现）**：`log_file_encoding` **不是 pytest 8.4.2 支持的选项**，写上会报
+> `PytestConfigWarning: Unknown config option: log_file_encoding`。
+> pytest 8 的日志文件默认就是 UTF-8，**不需要也无法通过 ini 指定编码**，直接删掉这一行即可。
+> 若必须自定义编码，只能自己挂 `logging.FileHandler(path, encoding="...")`。
 
 命令行等价写法：`--log-cli-level=DEBUG`、`--log-file=logs/run.log`、`--log-level=INFO`。
 
