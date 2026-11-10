@@ -3,6 +3,7 @@
 > 日期：2026-11-09
 > 计划阶段：18个月测开计划 · 阶段1 筑基期 · 第 7 周 · Day38
 > 状态：✅ 2 passed, 1 xfailed；logs/run.log 六条日志成对输出，中文正常
+> 课后答疑已补入第十二节：caplog 来源、set_level 语义、日志落点（内存 vs run.log）
 
 ---
 
@@ -239,7 +240,151 @@ if __name__ == "__main__":
 
 `logger` 来自模块级 `logger = logging.getLogger(__name__)`（`__name__` = `"api_client"`）。
 
-## 十二、明日预告（Day39）
+## 十二、答疑补充：caplog 机制三问
+
+### 12.1 `caplog` 是从哪个模块引入的？
+
+**不是 import 来的，是 pytest 内置的 fixture**，用例参数里写个 `caplog` 就自动注入：
+
+```python
+def test_request_log_visible(client, caplog):   # ← 写参数名就行
+```
+
+| 名字 | 来源 | 要不要 import |
+|---|---|---|
+| `caplog` | pytest 内置 fixture（源码定义在 `_pytest/logging.py` 的 `LogCaptureFixture`） | **不要** |
+| `logging.INFO` | Python 标准库 `logging` | **要** `import logging` |
+| `pytest` | 第三方包 | 要 `import pytest`（用 `pytest.mark.xfail` 时） |
+
+所以 `day38_homework.py` 顶部的 `import logging` 是为了 `logging.INFO` 这个常量，**和 `caplog` 本身无关**。
+
+同类内置 fixture（都不用 import）：`capsys` / `capfd` / `tmp_path` / `monkeypatch` / `request` / `pytestconfig`。
+
+确认清单：
+
+```powershell
+& "C:/Users/lenovo/AppData/Local/Programs/Python/Python39/python.exe" -m pytest --fixtures | findstr caplog
+```
+
+**别 import 它的类型**：
+
+```python
+from _pytest.logging import LogCaptureFixture   # ⚠️ 内部 API，不推荐
+```
+
+`_pytest` 是内部实现模块，路径和接口不保证跨版本稳定。项目代码直接写 `caplog` 即可。
+
+`caplog` 常用成员：`set_level()` / `records`（原始 LogRecord 列表）/ `text`（全部日志文本）/ `messages`（消息列表）。
+
+### 12.2 `caplog.set_level(logging.INFO, logger="api_client")` 是什么意思？
+
+**临时把 `api_client` 这个 logger 的级别降到 INFO，让 INFO 日志能被捕获。**
+
+```python
+caplog.set_level(logging.INFO, logger="api_client")
+                 ↑              ↑
+            捕获阈值         只作用于哪个 logger
+```
+
+| 参数 | 含义 |
+|---|---|
+| `logging.INFO` | 阈值，不是"只抓 INFO"，而是**INFO 及以上全抓**（INFO/WARNING/ERROR/CRITICAL），DEBUG 不要 |
+| `logger="api_client"` | 只改名为 `api_client` 的 logger；不写则改 root logger（波及所有 logger） |
+
+**为什么必须调这一行**：logging 的级别是在**源头**过滤的，不是捕获时过滤。
+
+```
+logger.info(...) → logger 的 effective level 是 WARNING？
+                    ├─ 是 → 记录根本不创建，直接丢弃
+                    └─ 否 → 创建 LogRecord → 传给 handler → caplog 收下
+```
+
+root logger 默认 **WARNING**，`api_client` 继承它，所以 `logger.info(...)` 在源头就被丢掉，`caplog.records` 里空空如也。`set_level` 就是临时把这个 logger 的级别调到 INFO。
+
+**不写 `logger=` 的后果**：
+
+```python
+caplog.set_level(logging.INFO)     # root 变 INFO → 所有 logger 的 INFO 都进来了
+```
+
+`caplog.records` 会混进 urllib3、pytest 自身的 INFO；`any(...)` 型断言能过，但 `len(texts) == 1` 这类精确断言立刻挂。**指定 `logger=` = 精准捕获**。
+
+**作用范围**：`caplog` 是 function 作用域 fixture，每个用例开始前重置、结束后恢复，互不污染。
+
+**常用变体**：
+
+```python
+caplog.set_level(logging.INFO, logger="api_client")        # 抓 INFO 及以上（日常）
+caplog.set_level(logging.DEBUG, logger="api_client")       # 连 req/resp 明细也抓
+caplog.set_level(logging.ERROR)                            # 不指定 → root，只抓 ERROR
+caplog.set_level(logging.INFO, logger=logging.getLogger("api_client"))  # 传对象，等价
+```
+
+一句话记法：`caplog` 是**捕鱼网**，`set_level` 决定**网眼多大**，`logger=` 决定**在哪片水域下网**。
+
+### 12.3 抓到的日志存在哪里，是 `run.log` 吗？
+
+**不是。`caplog` 抓的日志存在内存**，只在当前用例执行期间存在，用例结束即消失。
+
+三个内存位置：
+
+```python
+caplog.records    # LogRecord 对象列表（最原始，可取 .getMessage() / .levelname）
+caplog.text       # 全部日志拼成一段字符串
+caplog.messages   # 只取消息文本的列表
+```
+
+`caplog` 与 `run.log` 是**两条独立通道**：
+
+| | caplog | logs/run.log |
+|---|---|---|
+| 存哪 | 内存 | 磁盘 |
+| 存多久 | 只在当前用例内 | 整个会话，跨运行累积 |
+| 谁配 | 用例里 `set_level` | pytest.ini 的 `log_file` |
+| 干什么用 | **给断言用**（"日志里出现过什么"） | **给人查**（事后排障） |
+
+**同一条日志，同时有三条去向**：
+
+```
+logger.info("GET /get_user -> 200 2ms")
+   │
+   ├─→ 控制台         （log_cli=true 决定）
+   ├─→ logs/run.log   （log_file 决定，持久）
+   └─→ caplog.records （用例有 caplog 参数时才挂这个 handler，内存）
+```
+
+`caplog` 是"额外挂一个钩子"，不是"替换输出方式"——所以 run.log 里照样有那条日志，两者互不干扰。
+
+**⚠️ 一个副作用**：`caplog.set_level()` 改的是 **logger 本身的级别**（源头那道关），不只影响 caplog：
+
+```python
+caplog.set_level(logging.DEBUG, logger="api_client")
+```
+
+- `caplog.records` 多出 DEBUG 记录 ✅
+- 这些 DEBUG 也会流向 `run.log`，但还要过 `log_file_level` 这道关（`log_file_level = INFO` 时在 handler 层再被滤掉）
+
+完整的过滤是**两道**：
+
+```
+logger 级别（源头）  →  handler 级别（出口：控制台 / 文件 / caplog 各一道）
+```
+
+`caplog.set_level` 动第一道，`log_cli_level` / `log_file_level` 动第二道。理解这两道，才明白"我明明 set_level 到 DEBUG 了，run.log 里却没有 DEBUG"。
+
+**验证代码**（可加进 day38_homework.py）：
+
+```python
+def test_where_logs_go(client, caplog):
+    caplog.set_level(logging.INFO, logger="api_client")
+    client.get_user()
+    logger.info("用例自己的日志")
+    assert len(caplog.records) >= 3      # login + get_user + 自己这条
+```
+
+跑完再 `type logs\run.log`：文件里同样有这些行。**一个在内存里张网，一个往磁盘上刻字，两件事。**
+
+## 十三、明日预告（Day39）
 
 日志有了，接着做**失败现场落盘**：用例失败时自动保存响应 body / 截图 / 请求参数到 `artifacts/`，并把日志嵌进 HTML 报告——别人拿着报告就能复现。
 

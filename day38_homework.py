@@ -22,3 +22,9 @@ def test_fail_show_locals(client):
     data=resp.json()
     logger.info(f"拿到用户数据：{data}")
     assert data["age"]==28,f"实际年龄{data['age']}"
+
+def test_where_logs_go(client, caplog):
+    caplog.set_level(logging.INFO, logger="api_client")
+    client.get_user()
+    logger.info("用例自己的日志")
+    assert len(caplog.records) >= 2      # 内存里：login + get_user + 自己这条
