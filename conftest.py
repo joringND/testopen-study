@@ -6,6 +6,8 @@ import json
 import pytest
 import requests
 from api_client import ApiClient
+from pytest_html import extras
+import html as html_lib
 
 logger=logging.getLogger(__name__)
 
@@ -78,3 +80,26 @@ def pytest_runtest_makereport(item,call):
         },f,ensure_ascii=False,indent=2)
 
     logger.info(f"失败现场已保存：{path}")
+    # 把证据直接内嵌进报告（self-contained 模式也可见）
+    extra_list = getattr(report, "extras", [])
+    escaped = html_lib.escape(json.dumps(exchange, ensure_ascii=False, indent=2))
+    extra_list.append(extras.html(
+        "<div style='font-size:12px;'>"
+        "<strong>失败现场</strong>"
+        f"<pre style='white-space:pre-wrap;margin:6px 0 0 0;'>{escaped}</pre>"
+        "</div>"
+    ))
+    # ↓ 新增：第二条「请求摘要」（一行速览，打开报告先看这个）
+    summary = f"{exchange['method']} {exchange['path']} -> {exchange['status']} {exchange['cost_ms']}ms"
+    extra_list.append(extras.html(
+        "<div style='font-size:12px;'><strong>请求摘要</strong>"
+        f"<pre style='white-space:pre-wrap;margin:6px 0 0 0;'>{html_lib.escape(summary)}</pre></div>"
+    ))
+
+    report.extras = extra_list
+
+def pytest_terminal_summary(terminalreporter):#往控制台写内容，write_line() 就是它
+    """跑完在控制台末尾打印证据文件数量"""
+    if os.path.isdir(ARTIFACT_DIR):
+        files = [f for f in os.listdir(ARTIFACT_DIR) if f.endswith(".json")]
+        terminalreporter.write_line(f"artifacts 目录共 {len(files)} 个证据文件")

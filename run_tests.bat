@@ -1,16 +1,22 @@
 @echo off
-REM ============================================
-REM testopen-study one-click: full tests + HTML report
-REM Usage: double-click or type run_tests.bat
-REM Prereq: mock_server.py running on port 8000
-REM ============================================
+setlocal
+
 set PYTHON=C:/Users/lenovo/AppData/Local/Programs/Python/Python39/python.exe
+set ENV=%1
+if "%ENV%"=="" set ENV=test
+
+set FILES=day25_homework.py day27_homework.py day28_homework.py day30_homework.py day32_homework.py day33_homework.py day34_homework.py day35_homework.py day37_homework.py day38_homework.py day39_homework.py
+if not "%ENV%"=="test" set FILES=day37_homework.py
 
 for /f %%i in ('powershell -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set TS=%%i
+set REPORT=report_%ENV%_%TS%.html
 
-echo [1/2] Running all tests...
-%PYTHON% -m pytest day25_homework.py day27_homework.py day28_homework.py day30_homework.py -v --tb=short --html=report_%TS%.html --self-contained-html
+if not exist logs mkdir logs
+if not exist artifacts mkdir artifacts
 
-echo [2/2] Done. Report: report_%TS%.html
-start report_%TS%.html
+echo === Running tests, env: %ENV% ===
+%PYTHON% -m pytest %FILES% --env %ENV% -v --tb=short --html=%REPORT% --self-contained-html
+
+echo === Report: %REPORT% ===
+start "" %REPORT%
 pause
