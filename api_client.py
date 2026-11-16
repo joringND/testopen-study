@@ -1,79 +1,91 @@
 # api_client.py —— 接口框架核心：自动认证 + 401 自动重试
-import requests
-import logging
-import time
-logger=logging.getLogger(__name__)#__name__ 在这里正好是 "api_client"，日志里能看出是哪个模块打的
-class ApiClient:
-    def __init__(self,base_url,user="test",pwd="123"):
-        self.base_url=base_url
-        self.session=requests.Session()
-        self.user=user
-        self.pwd=pwd
-        self.token=None #缓存的token（初始没有）
-        self.last_exchange=None#最近一次请求/响应，供失败落盘
+# import requests
+# import logging
+# import time
+# logger=logging.getLogger(__name__)#__name__ 在这里正好是 "api_client"，日志里能看出是哪个模块打的
+# class ApiClient:
+#     def __init__(self,base_url,user="test",pwd="123"):
+#         self.base_url=base_url
+#         self.session=requests.Session()
+#         self.user=user
+#         self.pwd=pwd
+#         self.token=None #缓存的token（初始没有）
+#         self.last_exchange=None#最近一次请求/响应，供失败落盘
 
-    #登录：从响应体拿token存起来
-    def login(self,user=None,pwd=None):
-        user = user if user else self.user      # 传了就用传入的，没传用对象默认的
-        pwd = pwd if pwd else self.pwd
-        t0=time.time()
-        resp=self.session.post(
-            f"{self.base_url}/login",
-            json={"user":user,"pwd":pwd},
-            timeout=5,
-        )
-        cost=int((time.time()-t0)*1000)
-        self._log("POST","/login",resp,cost)
-        if resp.status_code==200:
-            self.token=resp.json()["token"] #存token
-        return resp
-    def _log(self,method,path,resp,cost):
-        """统一请求日志格式——所有发请求的地方都调它"""
-        logger.info(f"{method} {path} -> {resp.status_code} {cost}ms")
-        if cost>500:
-            logger.warning(f"{method} {path} -> {resp.status_code} {cost}ms慢请求")
-        logger.debug(f"resp={resp.text[:200]}")
-        #留存最近一次交换
-        req=resp.request
-        self.last_exchange={
-            "method":method,
-            "path":path,
-            "url":req.url if req is not None else None,
-            "req_body":str(req.body)[:500] if req is not None else None,
-            "status":resp.status_code,
-            "resp_text":resp.text[:200],
-            "cost_ms":cost,
-        }
-    # 核心方法：所有请求走这里（自动带 token + 401 重试）
-    def _request(self,method,path,**kwargs):
-        if self.token is None:   #没token——>先登录
-            self.login()
-        headers=kwargs.pop("headers",{})
-        headers["Authorization"]=f"Bearer {self.token}"#自动带token
+#     #登录：从响应体拿token存起来
+#     def login(self,user=None,pwd=None):
+#         user = user if user else self.user      # 传了就用传入的，没传用对象默认的
+#         pwd = pwd if pwd else self.pwd
+#         t0=time.time()
+#         resp=self.session.post(
+#             f"{self.base_url}/login",
+#             json={"user":user,"pwd":pwd},
+#             timeout=5,
+#         )
+#         cost=int((time.time()-t0)*1000)
+#         self._log("POST","/login",resp,cost)
+#         if resp.status_code==200:
+#             self.token=resp.json()["token"] #存token
+#         return resp
+#     def _log(self,method,path,resp,cost):
+#         """统一请求日志格式——所有发请求的地方都调它"""
+#         logger.info(f"{method} {path} -> {resp.status_code} {cost}ms")
+#         if cost>500:
+#             logger.warning(f"{method} {path} -> {resp.status_code} {cost}ms慢请求")
+#         logger.debug(f"resp={resp.text[:200]}")
+#         #留存最近一次交换
+#         req=resp.request
+#         self.last_exchange={
+#             "method":method,
+#             "path":path,
+#             "url":req.url if req is not None else None,
+#             "req_body":str(req.body)[:500] if req is not None else None,
+#             "status":resp.status_code,
+#             "resp_text":resp.text[:200],
+#             "cost_ms":cost,
+#         }
+#     # 核心方法：所有请求走这里（自动带 token + 401 重试）
+#     def _request(self,method,path,**kwargs):
+#         if self.token is None:   #没token——>先登录
+#             self.login()
+#         headers=kwargs.pop("headers",{})
+#         headers["Authorization"]=f"Bearer {self.token}"#自动带token
 
-        t0=time.time()
+#         t0=time.time()
 
-        resp=self.session.request(method,f"{self.base_url}{path}",headers=headers,**kwargs)
+#         resp=self.session.request(method,f"{self.base_url}{path}",headers=headers,**kwargs)
 
-        cost=int((time.time()-t0)*1000)#time.time() 取秒级浮点，差乘 1000 得毫秒
-        self._log(method,path,resp,cost)
+#         cost=int((time.time()-t0)*1000)#time.time() 取秒级浮点，差乘 1000 得毫秒
+#         self._log(method,path,resp,cost)
 
-        if resp.status_code==401:    #token过期
-            self.login()             #重新登录（换新token）
-            headers["Authorization"]=f"Bearer {self.token}"
-            resp=self.session.request(method,f"{self.base_url}{path}",headers=headers,**kwargs)#重试
-        return resp #返回最终结果
+#         if resp.status_code==401:    #token过期
+#             self.login()             #重新登录（换新token）
+#             headers["Authorization"]=f"Bearer {self.token}"
+#             resp=self.session.request(method,f"{self.base_url}{path}",headers=headers,**kwargs)#重试
+#         return resp #返回最终结果
 
-    #业务方法：只描述"要调哪个接口"，认证交给 _request
-    def get_user(self):
-        return self._request("GET","/get_user")
-    def get_order(self):
-        return self._request("GET","/get_order")
-    def get_vip(self):
-        return self._request("GET","/get_vip")
-    def echo(self, payload):
-        return self._request("POST", "/echo", json=payload)
+#     #业务方法：只描述"要调哪个接口"，认证交给 _request
+#     def get_user(self):
+#         return self._request("GET","/get_user")
+#     def get_order(self):
+#         return self._request("GET","/get_order")
+#     def get_vip(self):
+#         return self._request("GET","/get_vip")
+#     def echo(self, payload):
+#         return self._request("POST", "/echo", json=payload)
+#以上内容已转移至clients文件夹，上述内容废弃
+"""兼容层（过渡用）：旧名字 ApiClient 指向新的业务类 TestApi。
+
+用例和 fixture 一个都不用改；等所有地方都改成
+`from clients.test_api import TestApi` 之后，本文件可以删除。
+"""
+from clients.test_api import TestApi
+
+ApiClient = TestApi
+
 if __name__ == "__main__":
     client = ApiClient("http://127.0.0.1:8000")
-    client.get_user()  # 自动登录 + 自动带 token + 401 自动重试
+    resp = client.get_user()
+    print(resp.status_code, resp.json())
+#    client.get_user()  # 自动登录 + 自动带 token + 401 自动重试
 # 全程不用管 login/headers/token
