@@ -16,7 +16,3 @@ def check_client():
 @pytest.fixture
 def make_token():
     return "token123"
-
-
-# check_client / make_token 原样搬过来：
-# 依赖 base_url 或 ApiClient 的，都属于这一层
