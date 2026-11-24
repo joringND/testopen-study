@@ -1,7 +1,11 @@
+# Python 缓存
 __pycache__/
 *.pyc
-report_*.html
-artifacts/
-logs/
 .pytest_cache/
-__pycache__/
+
+# 运行产物（可重新生成，不入库）
+report_*.html
+report.html
+artifacts/
+logs/*
+!logs/.gitkeep
